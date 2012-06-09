@@ -14,7 +14,7 @@ import java.util.logging.Level;
 import net.smartsocket.*;
 import net.smartsocket.serverextensions.TCPExtension;
 import net.smartsocket.forms.StatisticsTracker;
-import net.smartsocket.protocols.json.RemoteCall;
+import net.smartsocket.protocols.RemoteCall;
 import net.smartsocket.smartlobby.User;
 
 /**
@@ -28,19 +28,18 @@ public class TCPClient extends AbstractClient {
 	/**
 	 * The number of outbound bytes that have been received since the last wipe on the StatisticsTracker poll.
 	 */
-	//private static Deque<TCPClient> clients = new LinkedList<TCPClient>();
-	private static Map<Object, TCPClient> clients = Collections.synchronizedMap( new HashMap<Object, TCPClient>() );
-	private static long inboundBytes = 0;
-	private static long outboundBytes = 0;
+	protected static Map<Object, TCPClient> clients = Collections.synchronizedMap( new HashMap<Object, TCPClient>() );
+	protected static long inboundBytes = 0;
+	protected static long outboundBytes = 0;
 	//# These are the private vars that never need to be accessed period outside this class.
-	private DataInputStream in;
-	private DataOutputStream out;
-	private Socket _client = null;
+	protected DataInputStream in;
+	protected DataOutputStream out;
+	protected Socket _client = null;
 	/**
 	 * The IP address of this TCPClient
 	 */
-	private String _ipAddress;
-	private TCPExtension _extension = null;
+	protected String _ipAddress;
+	protected TCPExtension _extension = null;
 
 	/**
 	 * Creates a new thread for a client on a TCPExtension object.
@@ -110,7 +109,7 @@ public class TCPClient extends AbstractClient {
 	private void setupSession() {
 		//# Initialize all of the input and output streams here...
 		try {
-			in = new DataInputStream( _client.getInputStream() );
+			in = new DataInputStream( new BufferedInputStream(_client.getInputStream())  );
 			out = new DataOutputStream( _client.getOutputStream() );
 		} catch (Exception e) {
 			//# Really should never get here, but just in case...
@@ -152,21 +151,18 @@ public class TCPClient extends AbstractClient {
 	/**
 	 * Infinite read loop until the client closes their connections
 	 */
-	private void read() {
-		String input = null;
-		byte[] bytes = null;
+	protected void read() {
+		//String input = null;
+		//byte[] bytes = null;
 		int red;
 		try {
 			while ( (red = in.read()) != -1 ) {
 				Logger.log( "Client input stream open." );
+				
+				String jsonHeader = readJsonHeader();
+				Logger.log( "Server message: " + jsonHeader );
 
-				long fileLength = getFileLength();
-				byte[] fileBytes = getFileBytes( fileLength );
-				String jsonHeader = getJsonHeader();
-
-				Logger.log( "Server message: " + fileLength + " / " + jsonHeader );
-
-				process( jsonHeader, fileBytes );
+				process( jsonHeader );
 			}
 			Logger.log( "Client input stream closed." + red );
 		} catch (Exception e) {
@@ -176,27 +172,7 @@ public class TCPClient extends AbstractClient {
 
 	}
 
-	public long getFileLength() {
-		
-		try {
-			return in.readLong();
-		} catch (Exception e) {
-		}
-		
-		return 0;
-	}
-
-	private byte[] getFileBytes( long fileLength ) throws IOException {
-		byte[] fileBytes = new byte[(int) fileLength];
-
-		for ( int i = 0; i < fileLength; i++ ) {
-			fileBytes[i] = in.readByte();
-		}
-
-		return fileBytes;
-	}
-
-	public String getJsonHeader() throws IOException {
+	public String readJsonHeader() throws IOException {
 		return in.readUTF().trim();
 	}
 
@@ -204,9 +180,8 @@ public class TCPClient extends AbstractClient {
 	 * The method processes incoming data from the client, and routes them to the proper methods on the server extension.
 	 * @param line
 	 */
-	private void process( String line, byte[] fileBytes ) {
+	private void process( String line ) {
 		//# Add the size of this line of text to our inboundByte variable for gui usage
-		setInboundBytes( getInboundBytes() + line.getBytes().length + fileBytes.length );
 		Logger.log( "Client " + Thread.currentThread().getId() + " says: " + line );
 
 		//# Reflection
@@ -221,42 +196,21 @@ public class TCPClient extends AbstractClient {
 			params = (JsonObject) new JsonParser().parse( line );
 			methodName = params.get( "method" ).getAsString();
 
-			if ( fileBytes.length == 0 ) {
-				//# Get ready to create dynamic method call to extension
-				Class[] classes = new Class[2];
-				classes[0] = TCPClient.class;
-				classes[1] = JsonObject.class;
-				
-				//# First let's send this message to the extensions onDataSpecial to see if
-				//# the extension wants to process this message in its own special way.
-				if ( _extension.onDataSpecial( this, methodName, params ) == false ) {
+			//# Get ready to create dynamic method call to extension
+			Class<?>[] classes = new Class[2];
+			classes[0] = TCPClient.class;
+			classes[1] = JsonObject.class;
 
-					//# Try to call the method on the desired extension class
-					//# This is only executed if onDataSpecial returns false on our extension.
-					Object[] o = { this, params };
-					m = _extension.getExtension().getMethod( methodName, classes );
-					m.invoke( _extension.getExtensionInstance(), o );
-				}
-			} else {
-				//# We are here becuase we are also trying to pass a file to a method on our extension for writing.
-				//# Get ready to create dynamic method call to extension
-				Class[] classes = new Class[3];
-				classes[0] = TCPClient.class;
-				classes[1] = JsonObject.class;
-				classes[2] = byte[].class;
-				
-				//# First let's send this message to the extensions onDataSpecial to see if
-				//# the extension wants to process this message in its own special way.
-				if ( _extension.onDataSpecial( this, methodName, params ) == false ) {
+			//# First let's send this message to the extensions onDataSpecial to see if
+			//# the extension wants to process this message in its own special way.
+			if ( _extension.onDataSpecial( this, methodName, params ) == false ) {
 
-					//# Try to call the method on the desired extension class
-					//# This is only executed if onDataSpecial returns false on our extension.
-					Object[] o = { this, params, fileBytes };
-					m = _extension.getExtension().getMethod( methodName, classes );
-					m.invoke( _extension.getExtensionInstance(), o );
-				}
+				//# Try to call the method on the desired extension class
+				//# This is only executed if onDataSpecial returns false on our extension.
+				Object[] o = { this, params };
+				m = _extension.getExtension().getMethod( methodName, classes );
+				m.invoke( _extension.getExtensionInstance(), o );
 			}
-
 		} catch (JsonParseException e) {
 			Logger.log( "[" + _extension.getExtensionName() + "] Client has tried to pass invalid JSON" );
 		} catch (NoSuchMethodException e) {
@@ -272,14 +226,12 @@ public class TCPClient extends AbstractClient {
 	}
 
 	/**
-	 * The RemoteCall message to send to this client. This method should no longer be used <b>unless</b>
-	 * your client is a Flash client using the ActionScript 3.0 SmartSocket Client API, or you need
-	 * text-only data transfers.
+	 * The RemoteCall message to send to this client. 
+	 * For JSON (text-only) data transfers.
 	 * @param message
 	 * @see net.smartsocket.protocols.json.RemoteCall
-	 * @deprecated Use send(net.smartsocket.protocols.binary.RemoteCall call) for non-Flash clients.
 	 */
-	public void send( net.smartsocket.protocols.json.RemoteCall message ) {
+	public void send( RemoteCall message ) {
 		//# Add the size of this line of text to our inboundByte variable for gui usage
 		setOutboundBytes( getOutboundBytes() + message.properties.toString().getBytes().length );
 		try {
@@ -290,42 +242,7 @@ public class TCPClient extends AbstractClient {
 		}
 	}
 
-	/**
-	 * The RemoteCall message to send to this client. This send method is capable of sending files through
-	 * the socket as well. This send method is not compatible with clients using the ActionScript 3.0 SmartSocket Client API
-	 * @param message
-	 * @see net.smartsocket.protocols.binary.RemoteCall
-	 */
-	public void send( net.smartsocket.protocols.binary.RemoteCall call ) {
-		System.out.println( "OUTGOING: " + call.properties.toString() );
-		try {
-			byte[] fileBytes = new byte[0];
-
-			if ( call.file != null ) {
-				long fileLength = call.file.length();
-				fileBytes = new byte[(int) fileLength];
-
-				call.properties.addProperty( "fileSize", fileLength );
-
-				FileInputStream fileInputStream = new FileInputStream( call.file );
-				fileInputStream.read( fileBytes );
-			}
-
-			out.write( 0 );
-			out.writeLong( fileBytes.length );			
-			
-			if(fileBytes.length != 0) {
-				out.write( fileBytes );
-			}
-			
-			out.writeUTF( call.properties.toString() );
-			
-			out.flush();
-		} catch (Exception e) {
-			System.err.println( "Write error (" + e + "): " + call );
-		}
-	}
-
+	
 	/**
 	 * Send a RemoteCall to a selected list of TCPClients
 	 * @param userList
@@ -424,4 +341,5 @@ public class TCPClient extends AbstractClient {
 	public void setIpAddress( String ipAddress ) {
 		this._ipAddress = ipAddress;
 	}
+
 }

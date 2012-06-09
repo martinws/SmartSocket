@@ -1,10 +1,13 @@
 package net.smartsocket.examples;
 
+import java.util.ArrayList;
+import java.util.Map;
+
 import com.google.gson.JsonObject;
 import net.smartsocket.Logger;
 import net.smartsocket.serverclients.TCPClient;
 import net.smartsocket.serverextensions.TCPExtension;
-import net.smartsocket.protocols.json.RemoteCall;
+import net.smartsocket.protocols.RemoteCall;
 
 /**
  * A very simple shell of a TCPExtension extension which includes all abstract methods and a simple onHelloWorld method.
@@ -75,4 +78,5 @@ public class TCPTest2 extends TCPExtension {
     public boolean onDataSpecial(TCPClient client, String methodName, JsonObject params) {
         return true;
     }
+    
 }

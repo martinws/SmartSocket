@@ -17,7 +17,7 @@ import net.smartsocket.Logger;
 import net.smartsocket.serverclients.TCPClient;
 import net.smartsocket.forms.ConsoleForm;
 import net.smartsocket.forms.ExtensionConsole;
-import net.smartsocket.protocols.json.RemoteCall;
+import net.smartsocket.protocols.RemoteCall;
 
 /**
  * The TCPExtension class is an abstract class that provides the shell around which all extensions using the TCP protocol
@@ -46,7 +46,7 @@ public abstract class TCPExtension extends AbstractExtension {
 	/**
 	 * The class of the extension object
 	 */
-	private Class extension;
+	private Class<?> extension;
 	/**
 	 * The instance object of the extension class.
 	 */
@@ -161,7 +161,7 @@ public abstract class TCPExtension extends AbstractExtension {
 
 		//# Create initial client object
 		Socket client = null;
-		boolean t = true;
+		//boolean t = true;
 		//# Begin server loop
 		while ( isRunning() ) {
 			try {
@@ -173,16 +173,16 @@ public abstract class TCPExtension extends AbstractExtension {
 			}
 
 			//# Spawn their own thread
-			new TCPClient( client, this ).start();
+			createNewTCPClient(client).start();
 		}
 		//# If we get here, the server is stopped.
 		Logger.log( "[" + getExtensionName() + "] The server has stopped running." );
 	}
 
-	private void close() {
+	protected void close() {
 		setRunning( false );
 	}
-	//# TODO - Add some diferent broadcast messages for different protocols as they are created.
+	//# TODO - Add some different broadcast messages for different protocols as they are created.
 
 	/**
 	 * Broadcast a message to *all* connected TCP clients
@@ -249,7 +249,7 @@ public abstract class TCPExtension extends AbstractExtension {
 	 * The port number that this extension is running on
 	 * @param port the port to set
 	 */
-	private void setPort( int port ) {
+	protected void setPort( int port ) {
 		this.port = port;
 	}
 
@@ -305,7 +305,7 @@ public abstract class TCPExtension extends AbstractExtension {
 	 * The class of the extension object
 	 * @return the extension
 	 */
-	public Class getExtension() {
+	public Class<?> getExtension() {
 		return extension;
 	}
 
@@ -313,7 +313,7 @@ public abstract class TCPExtension extends AbstractExtension {
 	 * The class of the extension object
 	 * @param extension the extension to set
 	 */
-	private void setExtension( Class extension ) {
+	protected void setExtension( Class<?> extension ) {
 		this.extension = extension;
 	}
 
@@ -329,7 +329,7 @@ public abstract class TCPExtension extends AbstractExtension {
 	 * The instance object of the extension class.
 	 * @param extensionInstance the extensionInstance to set
 	 */
-	private void setExtensionInstance( TCPExtension extensionInstance ) {
+	protected void setExtensionInstance( TCPExtension extensionInstance ) {
 		this.extensionInstance = extensionInstance;
 	}
 
@@ -345,7 +345,7 @@ public abstract class TCPExtension extends AbstractExtension {
 	 * The string name of the extension class.
 	 * @param extensionName the extensionName to set
 	 */
-	private void setExtensionName( String extensionName ) {
+	protected void setExtensionName( String extensionName ) {
 		this.extensionName = extensionName;
 	}
 
@@ -408,5 +408,15 @@ public abstract class TCPExtension extends AbstractExtension {
 	 */
 	public TCPClient getClientByUniqueId( Object uniqueId ) {
 		return clients.get( uniqueId );
+	}
+	
+	/**
+	 * Create a new TCPClient. Override this to allow you to create your own messaging protocol. 
+	 * i.e. A new TCPClient + methods to read/write the socket stream information.
+	 * @param socket
+	 * @return TCPClient (custom client to reading/writing the data).
+	 */
+	public TCPClient createNewTCPClient( Socket socket ) {
+		return new TCPClient( socket, this );
 	}
 }

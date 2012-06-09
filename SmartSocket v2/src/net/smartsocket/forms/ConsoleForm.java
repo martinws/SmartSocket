@@ -136,11 +136,18 @@ public class ConsoleForm extends javax.swing.JFrame {
 			return;
 		}
 
-		//# Set our look and feel to Windows
-		try {
-			UIManager.setLookAndFeel( "com.sun.java.swing.plaf.windows.WindowsLookAndFeel" );
-		} catch (Exception e) {
-			e.printStackTrace();
+		UIManager.LookAndFeelInfo[] lafInfos =  UIManager.getInstalledLookAndFeels();
+
+		//# Set our look and feel to Windows if it's there...
+		for( int i = 0; i < lafInfos.length; i++ )
+		{
+			if ( lafInfos[i].getName().equals("com.sun.java.swing.plaf.windows.WindowsLookAndFeel" ) == true ) {
+				try {
+					UIManager.setLookAndFeel( "com.sun.java.swing.plaf.windows.WindowsLookAndFeel" );
+				} catch (Exception e) {
+					e.printStackTrace();
+				}
+			}
 		}
 
 		//# Begin the running of the console creation thread

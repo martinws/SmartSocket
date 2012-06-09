@@ -5,7 +5,7 @@ import java.lang.reflect.Method;
 import java.net.*;
 import com.google.gson.*;
 import java.lang.reflect.InvocationTargetException;
-import net.smartsocket.protocols.binary.RemoteCall;
+import net.smartsocket.protocols.binary.RemoteFileCall;
 
 /**
  * This is the main routing mechanism for Java <b>clients</b> who are using SmartSocket.
@@ -65,7 +65,7 @@ public abstract class SmartSocketClient extends Socket implements Runnable {
 	 * 
 	 * @param call
 	 */
-	public static boolean send( net.smartsocket.protocols.binary.RemoteCall call ) {
+	public static boolean send( net.smartsocket.protocols.binary.RemoteFileCall call ) {
 		System.out.println( "OUTGOING: " + call.properties.toString() );
 		try {
 
@@ -123,7 +123,7 @@ public abstract class SmartSocketClient extends Socket implements Runnable {
 	 * Called when failing to send information through output stream
 	 * @param disconnectMessage
 	 */
-	protected abstract void onSendFail(RemoteCall call, Exception e );
+	protected abstract void onSendFail(RemoteFileCall call, Exception e );
 
 	public void run() {
 		//# Keep a loop going trying to read data from the server

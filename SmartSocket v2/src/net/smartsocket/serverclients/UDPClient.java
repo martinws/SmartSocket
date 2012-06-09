@@ -1,5 +1,7 @@
 package net.smartsocket.serverclients;
 
+import net.smartsocket.protocols.RemoteCall;
+
 /**
  * This class will end up mirroring TCPClient in many ways.
  * Implementation for his class will come soon. Sooner if there is more interest
@@ -7,5 +9,14 @@ package net.smartsocket.serverclients;
  * @author XaeroDegreaz
  */
 public class UDPClient extends AbstractClient {
+	/**
+	 * 
+	 */
+	public UDPClient() {  
+    }
+
+    public void run() {}
+
+    public void send(RemoteCall message) {}
 
 }

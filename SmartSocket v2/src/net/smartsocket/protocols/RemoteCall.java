@@ -1,28 +1,16 @@
-package net.smartsocket.protocols.json;
+package net.smartsocket.protocols;
 
-import com.google.gson.Gson;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
 import net.smartsocket.Logger;
 
-/**
- * The RemoteCall class is a simple way to construct a JSON formatted message to send to a client.<br/><br/>
- * <b>Usage:</b><br/>
- *<code>
- *RemoteCall call = new RemoteCall("<b>methodNameOnClientApplication</b>");<br/>
- *call.put("<b>propertyName</b>", "<b>propertyValue</b>");<br/>
- *client.send(call);<br/>
- *</code>
- * @author XaeroDegreaz
- * @deprecated Use net.smartsocket.protocols.binary.RemoteCall, instead. It has the same base capabilities, plus file sending.
- */
-public class RemoteCall {
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
 
+public class RemoteCall
+{
 	/**
 	 * The core container of the RemoteCall object.
 	 */
 	public transient JsonObject properties = new JsonObject();
-	private static transient Gson gson = new Gson();
 
 	/**
 	 * Instantiate a new RemoteCall object for calling a method on a client.
@@ -32,16 +20,6 @@ public class RemoteCall {
 	public RemoteCall( String method, String directTo ) {
 		properties.addProperty( "method", method );
 		properties.addProperty( "directTo", directTo );
-	}
-
-	/**
-	 * Instantiate a new RemoteCall object for calling a method on a client.
-	 * @param method The String name of the method to be called on the client.
-	 * @param directTo The JsonElement of the SmartSocketClient dataListener to direct this message to.
-	 */
-	public RemoteCall( String method, JsonElement directTo ) {
-		properties.addProperty( "method", method );
-		properties.addProperty( "directTo", directTo.getAsString() );
 	}
 
 	/**
@@ -111,14 +89,5 @@ public class RemoteCall {
 		}
 
 		return this;
-	}
-
-	/**
-	 * Serialize any object into a proper JSON Object
-	 * @param obj
-	 * @return
-	 */
-	public static JsonElement serialize( Object obj ) {
-		return gson.toJsonTree( obj );
 	}
 }

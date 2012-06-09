@@ -2,7 +2,7 @@ package net.smartsocket.tests;
 
 import com.google.gson.JsonObject;
 import net.smartsocket.client.SmartLobbyClient;
-import net.smartsocket.protocols.binary.RemoteCall;
+import net.smartsocket.protocols.binary.RemoteFileCall;
 
 
 /**
@@ -36,7 +36,7 @@ public class SmartLobbyClientTest extends SmartLobbyClient {
     }
 
 	@Override
-	protected void onSendFail(RemoteCall call, Exception e ) {
+	protected void onSendFail(RemoteFileCall call, Exception e ) {
 		
 	}
     

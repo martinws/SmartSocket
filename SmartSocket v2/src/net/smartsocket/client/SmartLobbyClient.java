@@ -1,6 +1,6 @@
 package net.smartsocket.client;
 
-import net.smartsocket.protocols.binary.RemoteCall;
+import net.smartsocket.protocols.binary.RemoteFileCall;
 
 
 /**
@@ -28,7 +28,7 @@ public abstract class SmartLobbyClient extends SmartSocketClient {
     protected void onConnect(String connectMessage) {
         System.out.println(connectMessage);
         
-        RemoteCall call = new RemoteCall("login");
+        RemoteFileCall call = new RemoteFileCall("login");
         call.put("username", "Your Name");
         send(call);
     }

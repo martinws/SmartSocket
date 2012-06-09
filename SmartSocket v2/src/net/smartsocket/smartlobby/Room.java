@@ -6,7 +6,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import net.smartsocket.Logger;
-import net.smartsocket.protocols.json.RemoteCall;
+import net.smartsocket.protocols.json.RemoteJSONCall;
 import net.smartsocket.smartlobby.events.SmartLobbyEvent;
 
 /**
@@ -172,18 +172,18 @@ public class Room {
 		setCurrentUsers( userList.size() );
 
 		//# Send a message to this user that they have joined a new room
-		RemoteCall call = new RemoteCall( "onRoomJoin" );
-		call.put( "room", RemoteCall.serialize( this ) );
+		RemoteJSONCall call = new RemoteJSONCall( "onRoomJoin" );
+		call.put( "room", RemoteJSONCall.serialize( this ) );
 		user.getTcpClient().send( call );
 
 		//# Let users of this room know that a new user has joined
-		call = new RemoteCall( "onUserJoin" );
-		call.put( "user", RemoteCall.serialize( user ) );
+		call = new RemoteJSONCall( "onUserJoin" );
+		call.put( "user", RemoteJSONCall.serialize( user ) );
 		slInstance.sendToList( userList, call, true );
 
 		//# Send to all users connected if their room accepts broadcast messages
-		call = new RemoteCall( "onRoomCountUpdate" );
-		call.put( "room", RemoteCall.serialize( this ) );
+		call = new RemoteJSONCall( "onRoomCountUpdate" );
+		call.put( "room", RemoteJSONCall.serialize( this ) );
 		slInstance.sendToList( slInstance.userList, call, false );
 
 		//# Event listeners
@@ -206,8 +206,8 @@ public class Room {
 		if ( getCurrentUsers() <= 0 && userCreated ) {
 			slInstance.roomList.remove( this.name );
 			//# TODO Send roomlist update to rooms that need to receive this event			
-			RemoteCall call = new RemoteCall( "onRoomDelete" );
-			call.put( "room", RemoteCall.serialize( this ) );
+			RemoteJSONCall call = new RemoteJSONCall( "onRoomDelete" );
+			call.put( "room", RemoteJSONCall.serialize( this ) );
 
 			slInstance.sendToList( slInstance.userList, call, false );
 
@@ -217,18 +217,18 @@ public class Room {
 		}
 
 		//# Send a message to this user that they have joined a new room
-		RemoteCall call = new RemoteCall( "onRoomLeave" );
-		call.put( "room", RemoteCall.serialize( this ) );
+		RemoteJSONCall call = new RemoteJSONCall( "onRoomLeave" );
+		call.put( "room", RemoteJSONCall.serialize( this ) );
 		user.getTcpClient().send( call );
 
 		//# Send message to all users in this room
-		call = new RemoteCall( "onUserLeave" );
-		call.put( "user", RemoteCall.serialize( user ) );
+		call = new RemoteJSONCall( "onUserLeave" );
+		call.put( "user", RemoteJSONCall.serialize( user ) );
 		slInstance.sendToList( userList, call, true );
 
 		//# Send to all users connected if their room accepts broadcast messages
-		call = new RemoteCall( "onRoomCountUpdate" );
-		call.put( "room", RemoteCall.serialize( this ) );
+		call = new RemoteJSONCall( "onRoomCountUpdate" );
+		call.put( "room", RemoteJSONCall.serialize( this ) );
 		slInstance.sendToList( slInstance.userList, call, false );
 
 		//# Event listeners
@@ -268,7 +268,7 @@ public class Room {
 
 		isAcceptingNewJoiners = (isAcceptingNewJoiners) ? false : true;
 
-		RemoteCall call = new RemoteCall( "onRoomLockToggled" );
+		RemoteJSONCall call = new RemoteJSONCall( "onRoomLockToggled" );
 		call.put( "roomID", this.roomID );
 		call.put( "name", this.name );
 		call.put( "isAcceptingNewJoiners", isAcceptingNewJoiners );
@@ -304,8 +304,8 @@ public class Room {
 			kickList.put( target.getUsername(), target );
 
 			//# Send the notification to all users in the room, including the target
-			RemoteCall call = new RemoteCall( "onUserKicked" );
-			call.put( "user", RemoteCall.serialize( target ) );
+			RemoteJSONCall call = new RemoteJSONCall( "onUserKicked" );
+			call.put( "user", RemoteJSONCall.serialize( target ) );
 			call.put( "reason", json.get( "reason" ).getAsString() );
 			slInstance.sendToList( userList, call, true );
 
@@ -356,8 +356,8 @@ public class Room {
 
 		//# We must recreate it in a temp variable since we marked it transient in the class.
 		Map tmp = userList;
-		RemoteCall call = new RemoteCall( "onUserList" );
-		call.put( "userList", RemoteCall.serialize( tmp ) );
+		RemoteJSONCall call = new RemoteJSONCall( "onUserList" );
+		call.put( "userList", RemoteJSONCall.serialize( tmp ) );
 		call.put( "roomName", this.name );
 		user.getTcpClient().send( call );
 

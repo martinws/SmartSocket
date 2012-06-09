@@ -19,7 +19,7 @@ import net.smartsocket.forms.ConsoleForm;
 import net.smartsocket.forms.ExtensionConsole;
 import net.smartsocket.serverclients.TCPClient;
 import net.smartsocket.serverextensions.TCPExtension;
-import net.smartsocket.protocols.json.RemoteCall;
+import net.smartsocket.protocols.json.RemoteJSONCall;
 import net.smartsocket.smartlobby.events.SmartLobbyEvent;
 
 /**
@@ -172,7 +172,7 @@ public abstract class SmartLobby extends TCPExtension {
 
 		Method m = null;
 
-		Class[] c = new Class[2];
+		Class<?>[] c = new Class[2];
 
 		c[0] = User.class;
 		c[1] = JsonObject.class;
@@ -234,8 +234,8 @@ public abstract class SmartLobby extends TCPExtension {
 	 * @param json 
 	 */
 	public void getRoomList( TCPClient client, JsonObject json ) {
-		RemoteCall call = new RemoteCall( "onRoomList" );
-		call.put( "roomList", RemoteCall.serialize( roomList ) );
+		RemoteJSONCall call = new RemoteJSONCall( "onRoomList" );
+		call.put( "roomList", RemoteJSONCall.serialize( roomList ) );
 		client.send( call );
 
 		//# Event
@@ -252,7 +252,7 @@ public abstract class SmartLobby extends TCPExtension {
 
 		//# Make sure that only one room with same name registered
 		if ( roomList.containsKey( json.get( "name" ).getAsString() ) ) {
-			RemoteCall call = new RemoteCall( "onCreateRoomError" );
+			RemoteJSONCall call = new RemoteJSONCall( "onCreateRoomError" );
 			call.put( "message", "A room already exists with that name." );
 			client.send( call );
 
@@ -263,7 +263,7 @@ public abstract class SmartLobby extends TCPExtension {
 
 		//# Make sure this user is not the owner of another room		
 		if ( user.getRoom().getOwner() == user ) {
-			RemoteCall call = new RemoteCall( "onCreateRoomError" );
+			RemoteJSONCall call = new RemoteJSONCall( "onCreateRoomError" );
 			call.put( "message", "You cannot create more than one room." );
 			client.send( call );
 
@@ -277,13 +277,13 @@ public abstract class SmartLobby extends TCPExtension {
 		roomList.put( json.get( "name" ).getAsString(), room );
 
 		//# Let the user know they have successfully created a room
-		RemoteCall call = new RemoteCall( "onCreateRoom" );
-		call.put( "room", RemoteCall.serialize( room ) );
+		RemoteJSONCall call = new RemoteJSONCall( "onCreateRoom" );
+		call.put( "room", RemoteJSONCall.serialize( room ) );
 		client.send( call );
 
 		//# Tell all SmartLobby clients thht a new room has been created
-		call = new RemoteCall( "onRoomAdd" );
-		call.put( "room", RemoteCall.serialize( room ) );
+		call = new RemoteJSONCall( "onRoomAdd" );
+		call.put( "room", RemoteJSONCall.serialize( room ) );
 		sendToList( userList, call, false );
 
 		//# Tell the user that they have joined a room
@@ -307,7 +307,7 @@ public abstract class SmartLobby extends TCPExtension {
 			//# Make sure the room is accepting new joiners (perhaps game already in session, or something)
 			//# Also, we need to ensure that users that have been kicked cannot re-join
 			if ( !room.isAcceptingNewJoiners || room.kickList.containsValue( getUserByTCPClient( client ) ) ) {
-				RemoteCall call = new RemoteCall( "onJoinRoomError" );
+				RemoteJSONCall call = new RemoteJSONCall( "onJoinRoomError" );
 				call.put( "message", "Room is locked-out." );
 				client.send( call );
 
@@ -318,7 +318,7 @@ public abstract class SmartLobby extends TCPExtension {
 
 			//# Check if room is at capacity
 			if ( room.getCurrentUsers() >= room.maxUsers ) {
-				RemoteCall call = new RemoteCall( "onJoinRoomError" );
+				RemoteJSONCall call = new RemoteJSONCall( "onJoinRoomError" );
 				call.put( "message", "Room is full." );
 				client.send( call );
 
@@ -330,7 +330,7 @@ public abstract class SmartLobby extends TCPExtension {
 			//# Check if private and needs password
 			if ( room.isPrivate ) {
 				if ( !json.get( "password" ).getAsString().equals( room.getPassword() ) ) {
-					RemoteCall call = new RemoteCall( "onJoinRoomError" );
+					RemoteJSONCall call = new RemoteJSONCall( "onJoinRoomError" );
 					call.put( "message", "Invalid password." );
 					client.send( call );
 
@@ -340,7 +340,7 @@ public abstract class SmartLobby extends TCPExtension {
 				}
 			}
 		} else {
-			RemoteCall call = new RemoteCall( "onJoinRoomError" );
+			RemoteJSONCall call = new RemoteJSONCall( "onJoinRoomError" );
 			call.put( "message", "Room does not exist." );
 			client.send( call );
 
@@ -360,8 +360,8 @@ public abstract class SmartLobby extends TCPExtension {
 	 */
 	public void sendRoomMessage( TCPClient client, JsonObject json ) {
 		User user = getUserByTCPClient( client );
-		RemoteCall call = new RemoteCall( "onMessageRoom" );
-		call.put( "sender", RemoteCall.serialize( user ) );
+		RemoteJSONCall call = new RemoteJSONCall( "onMessageRoom" );
+		call.put( "sender", RemoteJSONCall.serialize( user ) );
 		call.put( "message", json.get( "message" ).getAsString() );
 
 		sendToList( user.getRoom().userList, call, true );
@@ -380,7 +380,7 @@ public abstract class SmartLobby extends TCPExtension {
 		User target = getUserByUsername( json.get( "target" ).getAsString() );
 
 		if ( target != null ) {
-			RemoteCall call = new RemoteCall( "onMessagePrivate" );
+			RemoteJSONCall call = new RemoteJSONCall( "onMessagePrivate" );
 			call.put( "sender", user.getUsername() );
 			call.put( "message", json.get( "message" ).getAsString() );
 
@@ -444,14 +444,14 @@ public abstract class SmartLobby extends TCPExtension {
 			client.setUniqueId( json.get( "username" ).getAsString() );
 			userList.put( client.getUniqueId().toString(), new User( client, this ) );
 
-			RemoteCall call = new RemoteCall( "onLogin", json.get( "directTo" ).getAsString() );
+			RemoteJSONCall call = new RemoteJSONCall( "onLogin", json.get( "directTo" ) );
 			call.put( "username", json.get( "username" ).getAsString() );
 			client.send( call );
 
 		} catch (Exception e) {
 			Logger.log( "SmartLobby username taken: " + e );
 
-			RemoteCall call = new RemoteCall( "onLoginError" );
+			RemoteJSONCall call = new RemoteJSONCall( "onLoginError" );
 			call.put( "error", "Username taken." );
 			client.send( call );
 			dispatchEvent( SmartLobbyEvent.onLoginError, client );
@@ -532,7 +532,7 @@ public abstract class SmartLobby extends TCPExtension {
 	 * @param call The RemoteCall
 	 * @param isForceBroadcast Force this call to override the internal broadcast settings for the room, sending the message anyway.
 	 */
-	public void sendToList( Map<String, User> list, RemoteCall call, boolean isForceBroadcast ) {
+	public void sendToList( Map<String, User> list, RemoteJSONCall call, boolean isForceBroadcast ) {
 		for ( Map.Entry<String, User> entryUser : list.entrySet() ) {
 			User user = entryUser.getValue();
 			//# Only users in rooms accepting remote call packets will receive this event
