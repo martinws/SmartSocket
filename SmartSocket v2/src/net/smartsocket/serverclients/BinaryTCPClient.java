@@ -31,16 +31,32 @@ public class BinaryTCPClient extends TCPClient
 	public static String kNAME = "name";
 	public static String kDESCRIPTION = "description";
 	
-	// Messages are split into 65535 bytes to enable better mobile processing.
+	// Messages are split into 65535 byte packets to enable better mobile processing.
 	//
 	// Message Format is:
+	//
 	// PacketType - 8bit byte.
+	// Packet Size - 32 bit int (currently using 16 bits, can be increased in the future.).
 	// If FULL_PACKET OR INITIAL_PART_PACKET
-	// MessageType - 8 bit byte.
-	// Message or SubMessage length. - 32 bit int
-	// -- Message (See Description in MessageType)
+	// 		MessageType - 8 bit byte
+	// 		-- Message (See Description in MessageType)
 	// ELSE 
-	// Continuing of Message broken into 65535 bytes.
+	// 		Continuing of Message broken into 65535 bytes.
+	//
+	// For JSON only messages:
+	// 32-bit int - JSON Message Length - UTF8 compliant.
+	// UTF String containing:
+	// 		{ minimum: "method", "directTo", "Optional Return Response - returnListener", "Optional Return Response - returnMethod"
+	// 
+	// For Binary messages:
+	// 32-bit int JSON Message Length  - UTF8 compliant 
+	// UTF Message - JSON Definition { minimum: "directTo" - String, "method" - String, 
+	//								   "Optional Return Response - returnListener", "Optional Return Response - returnMethod"
+	//								   "data" - Array of Dictionary { "name", "description", "dataPosition - transient in array"} }" +
+	// Then for each data element
+	// 32-bit int Data Length    
+	// Data in Bytes
+	// ... Repeat to Number Data Elements.
 	//
 	public enum PacketType {
 		NOT_SET(0),
