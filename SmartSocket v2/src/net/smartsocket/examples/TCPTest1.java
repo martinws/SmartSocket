@@ -1,13 +1,11 @@
 package net.smartsocket.examples;
 
-import java.util.ArrayList;
-import java.util.Map;
-
-import com.google.gson.JsonObject;
 import net.smartsocket.Logger;
+import net.smartsocket.protocols.RemoteCall;
 import net.smartsocket.serverclients.TCPClient;
 import net.smartsocket.serverextensions.TCPExtension;
-import net.smartsocket.protocols.RemoteCall;
+
+import com.google.gson.JsonObject;
 
 /**
  * A very simple shell of a TCPExtension extension which includes all abstract methods and a simple onHelloWorld method.

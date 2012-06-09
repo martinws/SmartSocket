@@ -5,5 +5,5 @@
 	<classpathentry kind="lib" path="dist/lib/gson-1.7.1.jar"/>
 	<classpathentry kind="lib" path="dist/SmartSocket_v2.jar"/>
 	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER"/>
-	<classpathentry kind="output" path="src"/>
+	<classpathentry kind="output" path="output"/>
 </classpath>

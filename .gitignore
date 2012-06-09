@@ -2,6 +2,7 @@
 /Java/nbproject/private
 /Java/dist/README.TXT
 /SmartSocket v2/build
+/SmartSocket v2/output
 /SmartSocket v2/nbproject/private
 /SmartSocket v2/dist/README.TXT
 /Demos/Whiteboard/Source/Server/nbproject/private
@@ -13,3 +14,9 @@
 /Non-Java Client APIs/ActionScript 3.0 v2/src/com
 /Non-Java Client APIs/ActionScript 3.0 v2/SmartSocket ActionScript 3.0 API_Scene 1.swf
 /Non-Java Client APIs/ActionScript 3.0 v2/SmartSocket ActionScript 3.0 API.swf
+
+SmartSocket v2/src/net/smartsocket/tests/SmartLobbyClientTest.class
+
+SmartSocket v2/src/net/smartsocket/tests/SmartLobbyServerTest.class
+
+.DS_Store
