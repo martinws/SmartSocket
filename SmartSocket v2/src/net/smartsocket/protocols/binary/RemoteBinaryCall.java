@@ -18,7 +18,7 @@ public class RemoteBinaryCall extends RemoteCall
 		super(method);
 
 		data = new ArrayList<Map<String,Object>>();
-	}
+	} 
 
 	public void addBinaryData( ByteBuffer byteBuffer, String dataName, String dataDescription)
 	{

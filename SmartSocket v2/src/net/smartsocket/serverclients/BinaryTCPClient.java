@@ -333,8 +333,10 @@ public class BinaryTCPClient extends TCPClient
 			
 			//# First let's send this message to the extensions onDataSpecial to see if
 			//# the extension wants to process this message in its own special way.
-			if ( ( _extension instanceof BinaryTCPExtension ) && 
-			     ((BinaryTCPExtension) _extension).onDataSpecial( this, methodName, params, dataList ) == false ) {
+			if ( ( ( _extension instanceof BinaryTCPExtension ) && 
+			     ((BinaryTCPExtension) _extension).onDataSpecial( this, methodName, params, dataList ) == false ) &&
+			     _extension.onDataSpecial( this, methodName, params ) == false) 
+			{
 
 				//# Try to call the method on the desired extension class
 				//# This is only executed if onDataSpecial returns false on our extension.
