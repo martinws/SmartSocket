@@ -13,6 +13,10 @@ public class RemoteJSONCall extends net.smartsocket.protocols.RemoteCall
 		super(method);
 	}
 
+	public RemoteJSONCall( String method, String directTo ) {
+		super(method, directTo);
+	}
+	
 	/**
 	 * Instantiate a new RemoteCall object for calling a method on a client.
 	 * @param method The String name of the method to be called on the client.

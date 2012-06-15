@@ -1,5 +1,6 @@
 package net.smartsocket.serverclients;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -13,7 +14,9 @@ import java.util.Map;
 import java.util.Set;
 
 import net.smartsocket.Logger;
+import net.smartsocket.protocols.RemoteCall;
 import net.smartsocket.protocols.binary.RemoteBinaryCall;
+import net.smartsocket.protocols.json.RemoteJSONCall;
 import net.smartsocket.serverextensions.BinaryTCPExtension;
 import net.smartsocket.smartlobby.User;
 
@@ -60,17 +63,17 @@ public class BinaryTCPClient extends TCPClient
 	//
 	public enum PacketType {
 		NOT_SET(0),
-		FULL_PACKET(1),					// Full String.
+		FULL_PACKET(91),					// Full String.
 		INITIAL_PART_PACKET(2),			// Partial String initialisation.
 		CONTINUE_PARTIAL_PACKET(3),		// Partial String continued.
 		LAST_PART_PACKET(4);			// Last Partial String
 		
-		private final int type;  
+		private final byte type;  
 		  
 		PacketType(int aStatus) {  
-            this.type = aStatus;  
+            this.type = (byte) aStatus;  
         }  
-        public int type() {  
+        public byte type() {  
             return this.type;  
         }  
         
@@ -78,7 +81,7 @@ public class BinaryTCPClient extends TCPClient
             switch(x) {
             	case 0: 
             		return NOT_SET;
-            	case 1:
+            	case 91:
                 	return FULL_PACKET;
             	case 2:
                 	return INITIAL_PART_PACKET;
@@ -154,7 +157,7 @@ public class BinaryTCPClient extends TCPClient
 			MessageType msgType = MessageType.NOT_SET;
 			PacketType previousPacket = PacketType.NOT_SET;
 			
-			ByteBuffer currentBuffer = null;
+			ByteArrayOutputStream currentBuffer = null;
 			
 			// Messages are broken down into chunks no greater than 65535 bytes.
 			//
@@ -163,6 +166,10 @@ public class BinaryTCPClient extends TCPClient
 				Logger.log( "Client input stream open." );
 
 				boolean badMessage = false;
+				
+				// Read the length of this message.
+				//
+				int messageLength = in.readInt();
 				
 				PacketType packet = PacketType.fromInteger(packetType); 
 				if ( packet == PacketType.FULL_PACKET || packet == PacketType.INITIAL_PART_PACKET )
@@ -177,12 +184,10 @@ public class BinaryTCPClient extends TCPClient
 					{					
 						int messageType = in.read();
 						msgType = MessageType.fromInteger(messageType);
+						
+						messageLength -= 1;  // Reduce the message length by 1 since we've read the first byte.
 					}
 				}
-			
-				// Read the Message of this message.
-				//
-				int messageLength = in.readInt();
 				
 				byte[] inBytes = new byte[messageLength];
 				in.read(inBytes, 0, messageLength );
@@ -198,21 +203,24 @@ public class BinaryTCPClient extends TCPClient
 				else 
 				{
 					if ( currentBuffer == null )
-						currentBuffer = ByteBuffer.allocate(messageLength);
+						currentBuffer = new ByteArrayOutputStream();
 					
-					currentBuffer.put(inBytes);
+					currentBuffer.write(inBytes, 0, inBytes.length );
 				}
 				
-				// 
 				if ( packet == PacketType.LAST_PART_PACKET || packet == PacketType.FULL_PACKET )
 				{
+					ByteBuffer bufferToProcess = ByteBuffer.wrap( currentBuffer.toByteArray() );
+					bufferToProcess.rewind(); // Start from the beginning.
+					
 					if ( msgType == MessageType.JSON_MESSAGE )
-						processJSONMessage( currentBuffer );
+						processJSONMessage( bufferToProcess );
 					else 
-						processBinaryMessage( currentBuffer );
+						processBinaryMessage( bufferToProcess );
 					
 					msgType = MessageType.NOT_SET;
-					previousPacket = PacketType.NOT_SET;
+					previousPacket = PacketType.NOT_SET;					
+					currentBuffer = null;
 				}
 			}
 			
@@ -243,6 +251,8 @@ public class BinaryTCPClient extends TCPClient
 	 */
 	private void processJSONMessage( ByteBuffer byteBuffer ) throws IOException 
 	{	
+		byteBuffer.rewind();
+		
 		int jsonLength = byteBuffer.getInt();
 
 		ByteBuffer jsonBuffer = getSubByteBuffer( jsonLength, byteBuffer );
@@ -266,7 +276,7 @@ public class BinaryTCPClient extends TCPClient
 
 			//# Get ready to create dynamic method call to extension
 			Class<?>[] classes = new Class[2];
-			classes[0] = TCPClient.class;
+			classes[0] = getClass();
 			classes[1] = JsonObject.class;
 
 			//# First let's send this message to the extensions onDataSpecial to see if
@@ -322,29 +332,35 @@ public class BinaryTCPClient extends TCPClient
 			methodName = params.get( "method" ).getAsString();
 
 			//# Get ready to create dynamic method call to extension
-			Class<?>[] classes = new Class[2];
+			Class<?>[] classes = new Class[3];
 			classes[0] = BinaryTCPClient.class;
 			classes[1] = JsonObject.class;
+			classes[2] = null;
 			
 			// Now read the binary data.
 			//
-			JsonArray metaBinaryDataArray = params.get(kDATA).getAsJsonArray();
+			JsonElement jsonElement = params.get(kDATA);
+			ArrayList<Map<String,Object>> dataList = null;
+			if ( jsonElement != null )
+			{
+				JsonArray metaBinaryDataArray = jsonElement.getAsJsonArray();
 
-			ArrayList<Map<String,Object>> dataList = new ArrayList<Map<String,Object>>();
-			for ( int i = 0; i < metaBinaryDataArray.size(); i++ )
-			{	
-				int imageSize = byteBuffer.getInt();
-				byte[] subBytes = new byte[imageSize];
+				dataList = new ArrayList<Map<String,Object>>();
+				for ( int i = 0; i < metaBinaryDataArray.size(); i++ )
+				{	
+					int imageSize = byteBuffer.getInt();
+					byte[] subBytes = new byte[imageSize];
 
-				byteBuffer.get(subBytes, 0, imageSize);
-				
-				JsonObject associatedJsonObject = getMetaDataForBinaryData(i, params);
-				HashMap<String,Object> metaData = new HashMap<String,Object>();
+					byteBuffer.get(subBytes, 0, imageSize);
 
-				metaData.put( kDATA, ByteBuffer.wrap(subBytes) );
-				metaData.put( kNAME, associatedJsonObject.get(kNAME));
-				metaData.put( kDESCRIPTION, associatedJsonObject.get(kDESCRIPTION) );
-				dataList.add( metaData );
+					JsonObject associatedJsonObject = getMetaDataForBinaryData(i, params);
+					HashMap<String,Object> metaData = new HashMap<String,Object>();
+
+					metaData.put( kDATA, ByteBuffer.wrap(subBytes) );
+					metaData.put( kNAME, associatedJsonObject.get(kNAME));
+					metaData.put( kDESCRIPTION, associatedJsonObject.get(kDESCRIPTION) );
+					dataList.add( metaData );
+				}
 			}
 			
 			//# First let's send this message to the extensions onDataSpecial to see if
@@ -353,12 +369,27 @@ public class BinaryTCPClient extends TCPClient
 			     ((BinaryTCPExtension) _extension).onDataSpecial( this, methodName, params, dataList ) == false ) &&
 			     _extension.onDataSpecial( this, methodName, params ) == false) 
 			{
-
+				Object[] outputParams;
+				
+				if ( dataList != null)
+				{
+					Object[] o = { this, params, dataList };
+					outputParams = o;
+					
+					classes[2] = ArrayList.class;
+				}
+				else
+				{
+					Object[] o = { this, params };
+					outputParams = o;	
+					
+					
+				}
+				
 				//# Try to call the method on the desired extension class
 				//# This is only executed if onDataSpecial returns false on our extension.
-				Object[] o = { this, params, dataList };
 				m = _extension.getExtension().getMethod( methodName, classes );
-				m.invoke( _extension.getExtensionInstance(), o );
+				m.invoke( _extension.getExtensionInstance(), outputParams );
 			}
 		} catch (JsonParseException e) {
 			Logger.log( "[" + _extension.getExtensionName() + "] Client has tried to pass invalid JSON" );
@@ -371,6 +402,8 @@ public class BinaryTCPClient extends TCPClient
 					+ e.getTargetException().getMessage() + " in JSONObject string: " + params.toString() );
 		} catch (Exception e) {
 			e.printStackTrace();
+		} finally {
+			
 		}
 	}
 	
@@ -404,29 +437,49 @@ public class BinaryTCPClient extends TCPClient
 	
 	
 	private static final int MAX_MSGBODY_SZ = 0xFFF0;
- 
+ 	private static final int MAX_MSG_SZ = 0xFFFF;
+ 	
+	public void send( RemoteCall call )
+	{
+		if ( call instanceof RemoteJSONCall )
+			sendRemoteJSONCall( (RemoteJSONCall) call );
+		else if ( call instanceof RemoteBinaryCall )
+			sendRemoteBinaryCall( (RemoteBinaryCall) call );
+		else
+			super.send(call);
+	}
+	
 	/**
 	 * The RemoteCall message to send to this client. Break any message into sizeable chunks < the writeUTF limitations.
 	 * 
 	 * @param message
 	 * @see net.smartsocket.protocols.binary.RemoteCall
 	 */
-	public void send( net.smartsocket.protocols.json.RemoteJSONCall call ) 
+	public void sendRemoteJSONCall( RemoteJSONCall call ) 
 	{
-		try {			
+		try 
+		{			
 			String properties = call.properties.toString();
-			byte[] bytes = properties.getBytes("UTF-8");
+			byte[] jsonBytes = properties.getBytes("UTF-8");
 			
-			byte sentBytes = 0; 
-			while ( sentBytes < bytes.length )
+			ByteBuffer byteBuffer = ByteBuffer.allocate( jsonBytes.length + 5 ); // 1 for type, 4 for the 32 bit json length.
+			byteBuffer.put( (byte) MessageType.JSON_MESSAGE.type() );
+			byteBuffer.putInt( jsonBytes.length ); // Json length.
+			byteBuffer.put( jsonBytes );
+
+			byte[] sendBytes = byteBuffer.array();
+			
+			int sentBytes = 0; 
+			while ( sentBytes < sendBytes.length )
 			{
+				ByteBuffer sendBuffer = ByteBuffer.allocate( MAX_MSG_SZ );
+
 				int messageLength = MAX_MSGBODY_SZ;
 				PacketType headerValue;
-
-				if ( bytes.length < MAX_MSGBODY_SZ )
+				if ( sendBytes.length < MAX_MSGBODY_SZ )
 				{
 					headerValue = PacketType.FULL_PACKET;
-					messageLength = bytes.length;
+					messageLength = sendBytes.length;
 				}
 				else if ( sentBytes == 0 )
 					headerValue = PacketType.INITIAL_PART_PACKET;
@@ -435,18 +488,25 @@ public class BinaryTCPClient extends TCPClient
 				else // ( stringLength > strLength - sentBytes )			
 				{
 					headerValue = PacketType.LAST_PART_PACKET;
-					messageLength = bytes.length - sentBytes;
+					messageLength = sendBytes.length - sentBytes;
 				}
 				
-				byte[] subBytes = Arrays.copyOfRange(bytes, sentBytes, messageLength );
 				byte type = (byte) headerValue.type();
-				out.writeByte( type );
-				out.writeInt(messageLength);
+				sendBuffer.put(type);
+				sendBuffer.putInt(messageLength);
+				sendBuffer.put(Arrays.copyOfRange(sendBytes, sentBytes, messageLength ) );	
+
+				int size = sendBuffer.position();
+				sendBuffer.rewind();
 				
-				if ( headerValue == PacketType.FULL_PACKET || headerValue == PacketType.INITIAL_PART_PACKET )
-					out.writeInt(bytes.length); // Write the size of the Json message
+				byte[] sendArray = new byte[size];
+				sendBuffer.get(sendArray, 0, size);
+
+//				out.writeByte( type );				// Message Packet Type.
+//				out.writeInt(messageLength);		// Message Packet Length.
 				
-				out.write(subBytes);
+//				byte[] subBytes = Arrays.copyOfRange(sendBytes, sentBytes, messageLength );
+				out.write( sendArray );
 				out.flush();
 												
 				sentBytes += messageLength;
@@ -457,60 +517,73 @@ public class BinaryTCPClient extends TCPClient
 		}
 	}
 	
-	public void send( RemoteBinaryCall call )
+	public void sendRemoteBinaryCall( RemoteBinaryCall call )
 	{
 		Set<Map.Entry<String, JsonElement>> originalSet = call.properties.entrySet();
-		
 		JsonObject localProperties = new JsonObject();
+
+		// Create a local copy of the JsonObject to add the binary meta data to.
+		//
+		Iterator<Map.Entry<String, JsonElement>> it = originalSet.iterator();
+		while (it.hasNext()) 
+		{
+			Map.Entry<String, JsonElement> keyValue = it.next();
+
+			localProperties.add(keyValue.getKey(), keyValue.getValue());        	 
+		}
+
+		// Build the 'temporary' json representation of the binary data and it's associated attributes.
+		//
+		JsonArray associatedArray = new JsonArray();
+		ArrayList<Map<String,Object>> binaryList = call.getBufferedDataArray();
+
+		ByteBuffer binaryDataBuffer = null;
+		for ( int i = 0; i < binaryList.size(); i++ )
+		{
+			Map<String,Object> binaryElement = binaryList.get(i);
+
+			JsonObject associatedJsonObj = new JsonObject();
+			String name = (String) binaryElement.get(kNAME);
+			associatedJsonObj.add( kNAME, new JsonPrimitive(name) );
+
+			String description = (String) binaryElement.get(kDESCRIPTION);
+			associatedJsonObj.add( kDESCRIPTION, new JsonPrimitive(description) );
+			associatedJsonObj.add( kPOSITION_OF_BINARY_DATA, new JsonPrimitive(i));
+			associatedArray.add(associatedJsonObj);
+
+			ByteBuffer binaryData = (ByteBuffer) binaryElement.get(kDATA);
+			binaryData.rewind(); // Make sure we are reading from the beginning.
+			
+			int sizeofData = binaryData.capacity() + 4; // 4 for the int we will put first.
+			if ( binaryDataBuffer == null )
+				binaryDataBuffer = ByteBuffer.allocate( sizeofData ); // Size of dataSize.
+			else 
+			{	
+				// Increase the buffer limit.
+				//
+				binaryDataBuffer.limit( binaryDataBuffer.capacity() + sizeofData );
+			}
+			
+			// Write the size of the data (int 32-bit).
+			binaryDataBuffer.putInt(binaryData.remaining());
+			// Write the binaryData
+			binaryDataBuffer.put(binaryData.array());
+		}
 		
-		 Iterator<Map.Entry<String, JsonElement>> it = originalSet.iterator();
-         while (it.hasNext()) 
-         {
-        	 Map.Entry<String, JsonElement> keyValue = it.next();
+		localProperties.add(kDATA,  associatedArray);
 
-        	 localProperties.add(keyValue.getKey(), keyValue.getValue());        	 
-         }
-
-         // Build the 'temporary' json representation of the binary data and it's associated attributes.
-         //
-         JsonArray associatedArray = new JsonArray();
-         ArrayList<Map<String,Object>> binaryList = call.getBufferedDataArray();
-         
-         ByteBuffer binaryDataBuffer = ByteBuffer.allocate(1000);
-         for ( int i = 0; i < binaryList.size(); i++ )
-         {
-        	 Map<String,Object> binaryElement = binaryList.get(i);
-        	 
-        	 JsonObject associatedJsonObj = new JsonObject();
-        	 
-        	 String name = (String) binaryElement.get(kNAME);
-        	 associatedJsonObj.add( kNAME, new JsonPrimitive(name) );
-        	 
-        	 String description = (String) binaryElement.get(kDESCRIPTION);
-        	 associatedJsonObj.add( kDESCRIPTION, new JsonPrimitive(description) );
-        	 
-        	 associatedJsonObj.add( kPOSITION_OF_BINARY_DATA, new JsonPrimitive(i));
-        	 
-        	 associatedArray.add(associatedJsonObj);
-        	 
-        	 ByteBuffer binaryData = (ByteBuffer) binaryElement.get(kDATA);
-        	 binaryData.rewind();
-        	 // Write the size of the data (int 32-bit).
-        	 binaryDataBuffer.putInt(binaryData.remaining());
-        	 // Write the binaryData
-        	 binaryDataBuffer.put(binaryData.array());
-        }
-                          	         
 		try 
-		{			
-			String properties = call.properties.toString();
+		{		
+			String properties = localProperties.toString();
 			byte[] jsonBytes = properties.getBytes("UTF-8");
-			
-			ByteBuffer sendBytes = ByteBuffer.wrap(jsonBytes);
+
+			ByteBuffer sendBytes = ByteBuffer.allocate( jsonBytes.length + 5 + binaryDataBuffer.capacity() ); // 1 for type, 4 for the 32 bit json length.
+			sendBytes.put( (byte) MessageType.BINARY_MESSAGE.type() );
+			sendBytes.putInt( jsonBytes.length ); // Json length.
+			sendBytes.put( jsonBytes );
 			sendBytes.put( binaryDataBuffer.array() );
-			
+
 			byte[] bytesToSend = sendBytes.array();
-			
 			byte sentBytes = 0; 
 			while ( sentBytes < bytesToSend.length )
 			{
@@ -531,25 +604,29 @@ public class BinaryTCPClient extends TCPClient
 					headerValue = PacketType.LAST_PART_PACKET;
 					messageLength = bytesToSend.length - sentBytes;
 				}
-				
-				byte[] subBytes = Arrays.copyOfRange(bytesToSend, sentBytes, messageLength );
+
+//				byte[] subBytes = Arrays.copyOfRange(bytesToSend, sentBytes, messageLength );
+//				byte type = (byte) headerValue.type();
+//				out.writeByte( type );			// Packet Type.
+//				out.writeInt(messageLength); 	// Length of the Sub Messages.
+
+				ByteBuffer sendBuffer = ByteBuffer.allocate( MAX_MSG_SZ );
 				byte type = (byte) headerValue.type();
-				out.writeByte( type );			// Packet Type.
-				out.writeInt(messageLength); 	// Length of the Sub Messages.
-		
-				if ( headerValue == PacketType.FULL_PACKET || headerValue == PacketType.INITIAL_PART_PACKET )
-				{
-					// Send the Message Type
-					out.writeByte( MessageType.BINARY_MESSAGE.type() );
-					// and the size of the json information.
-					out.writeInt(jsonBytes.length); // Write the size of the Json message
-				}
+				sendBuffer.put(type);
+				sendBuffer.putInt(messageLength);
+				sendBuffer.put(Arrays.copyOfRange(bytesToSend, sentBytes, messageLength ) );	
+
+				int size = sendBuffer.position();
+				sendBuffer.rewind();
+				
+				byte[] sendArray = new byte[size];
+				sendBuffer.get(sendArray, 0, size);
 				
 				// Now send the message part.
 				//
-				out.write(subBytes);
+				out.write(sendArray);
 				out.flush();
-												
+
 				sentBytes += messageLength;
 			}
 
@@ -557,6 +634,7 @@ public class BinaryTCPClient extends TCPClient
 			System.err.println( "Write error (" + e + "): " + call );
 		}
 	}
+	
 
 	/**
 	 * Send a RemoteCall to a selected list of TCPClients

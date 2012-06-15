@@ -4,6 +4,7 @@ import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
+import net.smartsocket.protocols.RemoteCall;
 
 public class RemoteBinaryCall extends RemoteCall
 {

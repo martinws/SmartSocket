@@ -61,6 +61,7 @@ public class ConsoleForm extends javax.swing.JFrame {
         tabbedPane = new JTabbedPane();
         scrollPaneCritical = new JScrollPane();
         logText = new JEditorPane();
+        imagePanel = new ImagePanel();
         lblConnectedClients = new JLabel();
         lblUpstream = new JLabel();
         lblDownstream = new JLabel();
@@ -78,6 +79,7 @@ public class ConsoleForm extends javax.swing.JFrame {
         logText.setText("<html>\r\n  \n");
         scrollPaneCritical.setViewportView(logText);
         tabbedPane.addTab("Critical", scrollPaneCritical);
+        tabbedPane.addTab("Last Image", imagePanel);
         lblConnectedClients.setText("Connected Clients: 0");
         lblUpstream.setText("Upstream: 0 kb/s");
         lblDownstream.setText("Downstream: 0 kb/s");
@@ -206,6 +208,7 @@ public class ConsoleForm extends javax.swing.JFrame {
     public static JEditorPane logText;
     public static JMenuBar menuBar;
     public static JScrollPane scrollPaneCritical;
+    public static ImagePanel imagePanel;
     public static JTabbedPane tabbedPane;
     // End of variables declaration//GEN-END:variables
 	public static JFrame instance = null;

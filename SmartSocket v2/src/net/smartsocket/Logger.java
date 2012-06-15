@@ -1,5 +1,7 @@
 package net.smartsocket;
 
+import java.awt.Image;
+
 import javax.swing.JScrollPane;
 import javax.swing.text.Element;
 import javax.swing.text.html.HTMLDocument;
@@ -85,6 +87,24 @@ public class Logger {
 		}
 
 	}
+	
+	public static void imageToLog( byte[] imageInBytes )
+	{
+		//# Try to place the new log message in a tab corresponding to its extension name.
+		//# If none is found, simply place the log into the Critical pane, or another pane used for whatever.
+		try 
+		{
+					ImagePanel imagePanel = (ImagePanel) ConsoleForm.tabbedPane.getComponentAt( 1 );
+					imagePanel.setImageFromBytes( imageInBytes );
+		} 
+		catch (Exception e)
+		{
+			//		scrollPane = ConsoleForm.scrollPaneCritical;
+				//	doc = (HTMLDocument) ConsoleForm.logText.getDocument();
+		}	
+		
+		return;
+	}
 
 	/**
 	 * Get the particulars of the calling class and its objects for use in manipulating the logText and also the scrollbar
@@ -108,6 +128,8 @@ public class Logger {
 		Object[] obj = { doc, scrollPane };
 		return obj;
 	}
+	
+	
 
 	/**
 	 * Send a message to the GUI console with the given message at the Logger.DEBUG log level.

@@ -198,7 +198,7 @@ public class TCPClient extends AbstractClient {
 
 			//# Get ready to create dynamic method call to extension
 			Class<?>[] classes = new Class[2];
-			classes[0] = TCPClient.class;
+			classes[0] = getClass();
 			classes[1] = JsonObject.class;
 
 			//# First let's send this message to the extensions onDataSpecial to see if
